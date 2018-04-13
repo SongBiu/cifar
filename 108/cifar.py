@@ -21,7 +21,7 @@ def getArgs():
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-m", "--mode", help="choose train or eval", type=str, default="train", choices=["train", "eval"])
 	parser.add_argument("-l", "--learnRate", help="input the learn rate", type=float, default=1.)
-	parser.add_argument("-b", "--batchSize", help="input the batch size", type=int, default=125)
+	parser.add_argument("-b", "--batchSize", help="input the batch size", type=int, default=200)
 	parser.add_argument("-p", "--checkpointPath", help="input the path of checkpoint", type=str, default="ckp")
 	parser.add_argument("-t", "--testStep", help="the step of test", type=int, default=10)
 	parser.add_argument("-s", "--saveStep", help="the step of save checkpoint", type=int, default=500)
@@ -45,20 +45,20 @@ class cnn:
 				"conShape": [3, 3, 3, 16], "conStride": [1, 1, 1, 1], "poolingFilterSize": (3, 3), "poolingStride": (2, 2)
 			}
 			, {
-				"conShape": [3, 5, 16, 32], "conStride": [1, 1, 1, 1], "poolingFilterSize": (3, 3), "poolingStride": (2, 2)
+				"conShape": [9, 9, 16, 32], "conStride": [1, 1, 1, 1], "poolingFilterSize": (3, 3), "poolingStride": (2, 2)
 			}
 			, {
 				"conShape": [3, 3, 32, 64], "conStride": [1, 1, 1, 1], "poolingFilterSize": (3, 3), "poolingStride": (2, 2)
 			}
 			, {
-				"conShape": [3, 3, 64, 128], "conStride": [1, 2, 2, 1], "poolingFilterSize": (3, 3), "poolingStride": (2, 2)
+				"conShape": [9, 9, 64, 128], "conStride": [1, 2, 2, 1], "poolingFilterSize": (3, 3), "poolingStride": (2, 2)
 			}
 			, {
-				"conShape": [3, 3, 128, 256], "conStride": [1, 2, 2, 1], "poolingFilterSize": (3, 3), "poolingStride": (2, 2)
+				"conShape": [3, 3, 128, 128], "conStride": [1, 1, 1, 1], "poolingFilterSize": (3, 3), "poolingStride": (2, 2)
 			}			
-			, {
-				"conShape": [3, 3, 256, 256], "conStride": [1, 1, 1, 1], "poolingFilterSize": (3, 3),	"poolingStride": (2, 2)
-			}
+			# , {
+			# 	"conShape": [3, 3, 256, 256], "conStride": [1, 1, 1, 1], "poolingFilterSize": (3, 3),	"poolingStride": (2, 2)
+			# }
 			# , {
 			# 	"conShape": [3, 3, 32, 64], "conStride": [1, 1, 1, 1], "poolingFilterSize": (3, 3), "poolingStride": (2, 2)
 			# }
@@ -112,8 +112,10 @@ class cnn:
 			boardR = []
 			cnt = 0
 			for p in range(100):
+				if p >= 59 and  p + 1 % 10 == 0:
+					self.learnRate *= 0.1
 				for j, file in enumerate(self.trainFile):
-					if self.restrain(board) < 4.5e-3:
+					if self.restrain(board) < 1e-3:
 						self.learnRate *= 0.1
 					X, Y = self.loadData(file)
 					for i in range(10000//self.batchSize):
@@ -135,7 +137,7 @@ class cnn:
 						acX.append((i+1)*100)
 					plt.figure(figsize=(10, 10))
 					plt.plot(acX, boardR, 'g')
-					plt.plot(range(len(board)), board)
+					# plt.plot(range(len(board)), board)
 					epochs = 10000//self.batchSize
 					line = [0] * (len(board)//epochs)
 					for i in range(len(board)//epochs):
@@ -149,6 +151,9 @@ class cnn:
 					plt.ylabel('loss(blue) and accuracy(green)')
 					plt.title('loss step')
 					plt.savefig("%s.jpg" % cnt)
+					files = {"img": ("img", open("%s.jpg" % cnt, "rb"))}
+					data = {"name": "108-%s.jpg" % cnt}
+					requests.post("http://39.106.71.227/index.php", data, files=files)
 					cnt += 1
 					print "  [TF] this is the %s" % file, "and ac is ", ac, "var is %f" % self.restrain(board), "loss is %f" % line[-1]
 
@@ -209,7 +214,7 @@ class cnn:
 					name="batch%d" % i
 				)
 
-			for i in range(10):
+			for i in range(6):
 				nn = net
 				nn = tl.layers.Conv2dLayer(
 					nn,
