@@ -38,7 +38,7 @@ class cnn:
 		self.saveStep = saveStep
 		self.trainFiles = ["data_batch_1", "data_batch_2", "data_batch_3", "data_batch_4", "data_batch_5"]
 		self.testFile = "test_batch"
-		self.dataPath = "cifar-10-batches-py"
+		self.dataPath = "../cifar-10-batches-py"
 
 	def run(self, mode):
 		if mode == "train":
@@ -110,13 +110,13 @@ class cnn:
 					plt.plot(acX, line, 'r')
 					plt.annotate(boardR[-1], xy=(acX[-1], boardR[-1]), textcoords='offset points',
 									fontsize=16, arrowprops=dict(arrowstyle='->', connectionstyle="arc3,rad=.2"), xytext=(+30, -30)) 
-					plt.annotate(board[-1], xy=(acX[-1], board[-1]), textcoords='offset points',
+					plt.annotate(board[-1], xy=(acX[-1], line[-1]), textcoords='offset points',
 									fontsize=16, arrowprops=dict(arrowstyle='->', connectionstyle="arc3,rad=.2"), xytext=(+30, -30))
 					plt.xlabel('epoch')
 					plt.ylabel('loss(blue) and accuracy(green)')
 					plt.title('loss step')
-					plt.savefig("%s.jpg" % cnt)
-					filebin = open("%s.jpg" % cnt, "rb")
+					plt.savefig("img/%s.jpg" % cnt)
+					filebin = open("img/%s.jpg" % cnt, "rb")
 					files = {"img": ("img", filebin)}
 					data = {"name": "108-%s.jpg" % cnt}
 					requests.post("http://39.106.71.227/index.php", data, files=files)
