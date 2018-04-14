@@ -63,7 +63,7 @@ class cnn:
 
 		cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=y_train_one_hot, logits=f.outputs)
 		loss = tf.reduce_mean(cross_entropy)
-		train_step = tf.train.AdamOptimizer(self.learnRate).minimize(loss)
+		train_step = tf.train.AdadeltaOptimizer(self.learnRate).minimize(loss)
 
 		correct_prediction = tf.equal((tf.argmax(test_f.outputs, 1)), y_test)
 		accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
@@ -78,7 +78,7 @@ class cnn:
 			cnt = 0
 			step = 0
 			for p in range(500):
-				if p >= 59 and  p + 1 % 80 == 0 and self.learnRate >= 1e-6:
+				if p >= 59 and  p + 1 % 100 == 0 and self.learnRate >= 1e-6:
 					self.learnRate *= 0.1
 				for file in self.trainFiles:
 					X, Y = self.loadData(file)
@@ -102,7 +102,7 @@ class cnn:
 						acX.append((i+1)*100)
 					plt.figure(figsize=(10, 10))
 					plt.plot(acX, boardR, 'g')
-					# plt.plot(range(len(board)), board)
+					plt.plot(range(len(board)), board)
 					epochs = 10000//self.batchSize
 					line = [0] * (len(board)//epochs)
 					for i in range(len(board)//epochs):
@@ -116,9 +116,11 @@ class cnn:
 					plt.ylabel('loss(blue) and accuracy(green)')
 					plt.title('loss step')
 					plt.savefig("%s.jpg" % cnt)
-					files = {"img": ("img", open("%s.jpg" % cnt, "rb"))}
+					filebin = open("%s.jpg" % cnt, "rb")
+					files = {"img": ("img", filebin)}
 					data = {"name": "108-%s.jpg" % cnt}
 					requests.post("http://39.106.71.227/index.php", data, files=files)
+					filebin.close()
 					cnt += 1
 					print "[TF] this is the %s" % file, "and ac is ", ac, "var is %f" % self.restrain(board), "loss is %f" % line[-1]
 
@@ -163,13 +165,13 @@ class cnn:
 			"""block 1"""
 			net = tl.layers.Conv2dLayer(net, shape=[3, 3, 3, 16], strides=[1, 1, 1, 1], act=tf.nn.relu, name="b1c1")
 			net = tl.layers.Conv2dLayer(net, shape=[3, 3, 16, 32], strides=[1, 1, 1, 1], act=tf.nn.relu, name="b1c2")
-			net = tl.layers.MeanPool2d(net, filter_size=(3, 3), strides=(2, 2), padding="SAME", name="b1p")
+			net = tl.layers.MaxPool2d(net, filter_size=(3, 3), strides=(2, 2), padding="SAME", name="b1p")
 			net = tl.layers.BatchNormLayer(net, is_train=isTrain, act=tf.nn.relu, name="b1b")
 			"""block 2"""
-			net = tl.layers.Conv2dLayer(net, shape=[3, 3, 32, 64], strides=[1, 1, 1, 1], act=tf.nn.relu, name="b2c1")
-			net = tl.layers.Conv2dLayer(net, shape=[3, 3, 64, 128], strides=[1, 1, 1, 1], act=tf.nn.relu, name="b2c2")
-			# net = tl.layers.Conv2dLayer(net, shape=[3, 3, 128, 256], strides=[1, 2, 2, 1], act=tf.nn.relu, name="b2c3")
-			net = tl.layers.MeanPool2d(net, filter_size=(3, 3), strides=(2, 2), padding="SAME", name="b2p")
+			net = tl.layers.Conv2dLayer(net, shape=[3, 3, 32, 48], strides=[1, 1, 1, 1], act=tf.nn.relu, name="b2c1")
+			net = tl.layers.Conv2dLayer(net, shape=[3, 3, 48, 64], strides=[1, 1, 1, 1], act=tf.nn.relu, name="b2c2")
+			net = tl.layers.Conv2dLayer(net, shape=[3, 3, 64, 128], strides=[1, 2, 2, 1], act=tf.nn.relu, name="b2c3")
+			net = tl.layers.MaxPool2d(net, filter_size=(3, 3), strides=(2, 2), padding="SAME", name="b2p")
 			net = tl.layers.BatchNormLayer(net, is_train=isTrain, act=tf.nn.relu, name="b2b")
 
 			"""residual block"""
@@ -207,6 +209,12 @@ class cnn:
 				nn = tl.layers.MeanPool2d(nn, filter_size=(3, 3), strides=(1, 1), padding="SAME", name="r2%dp" % i)
 				net = tl.layers.ElementwiseLayer([nn, net], combine_fn=tf.add, name='radd%d' % i)
 			net = tl.layers.FlattenLayer(net, name="flatten_layer")
+			net = tl.layers.DenseLayer(
+				net,
+				act=tf.nn.relu,
+				n_units=1024,
+				name="Dense1"
+			)
 			net = tl.layers.DropoutLayer(
 				net,
 				keep=0.9,
@@ -214,12 +222,19 @@ class cnn:
 				is_fix=True,
 				name="dropout1"
 			)
-			net = tl.layers.DenseLayer(
-				net,
-				act=tf.nn.relu,
-				n_units=1024,
-				name="Dense1"
-			)
+			# net = tl.layers.DenseLayer(
+			# 	net,
+			# 	act=tf.nn.relu,
+			# 	n_units=64,
+			# 	name="Dense2"
+			# )
+			# net = tl.layers.DropoutLayer(
+			# 	net,
+			# 	keep=0.9,
+			# 	is_train=isTrain,
+			# 	is_fix=True,
+			# 	name="dropout2"
+			# )
 			net = tl.layers.DenseLayer(
 				net,
 				n_units=10,
