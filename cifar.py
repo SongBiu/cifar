@@ -36,7 +36,6 @@ class cnn:
 		self.checkpointPath = checkpointPath
 		self.testStep = testStep
 		self.saveStep = saveStep
-		print "[TF] learn rate is %f, batch size is %d, checkpoint path is %s" % (self.learnRate, self.batchSize, self.checkpointPath)
 		self.trainFiles = ["data_batch_1", "data_batch_2", "data_batch_3", "data_batch_4", "data_batch_5"]
 		self.testFile = "test_batch"
 		self.dataPath = "cifar-10-batches-py"
@@ -97,13 +96,14 @@ class cnn:
 						step += 1
 					ac = sess.run(accuracy, feed_dict={x_test: testX, y_test: testY})
 					boardR.append(ac)
+					epochs = 10000//self.batchSize
 					acX = []
 					for i in range(len(boardR)):
-						acX.append((i+1)*100)
+						acX.append((i+1)*epochs)
 					plt.figure(figsize=(10, 10))
 					plt.plot(acX, boardR, 'g')
 					plt.plot(range(len(board)), board)
-					epochs = 10000//self.batchSize
+					
 					line = [0] * (len(board)//epochs)
 					for i in range(len(board)//epochs):
 						line[i] = np.array(board[i*epochs:(i+1)*epochs]).mean()
@@ -152,7 +152,7 @@ class cnn:
 		x = np.zeros((10000, 32, 32, 3), dtype='uint8')
 		for i, data in enumerate(datas):
 			data = data.reshape(3, -1).reshape(3, 32, 32)
-			# data = (data - np.mean(data)) / np.std(data)
+			data = (data - np.mean(data)) / np.std(data)
 			for j in range(3):		
 				x[i, :, :, j] = data[j, :, :]
 			# x[i,:,:,:] = data
@@ -163,24 +163,24 @@ class cnn:
 			tl.layers.set_name_reuse(reuse)
 			net = tl.layers.InputLayer(inputs=x_input, name='input_layer')
 			"""block 1"""
-			net = tl.layers.Conv2dLayer(net, shape=[3, 3, 3, 16], strides=[1, 1, 1, 1], act=tf.nn.relu, name="b1c1")
-			net = tl.layers.Conv2dLayer(net, shape=[3, 3, 16, 32], strides=[1, 1, 1, 1], act=tf.nn.relu, name="b1c2")
-			net = tl.layers.MaxPool2d(net, filter_size=(3, 3), strides=(2, 2), padding="SAME", name="b1p")
+			net = tl.layers.Conv2dLayer(net, shape=[7, 7, 3, 64], strides=[1, 1, 1, 1], act=tf.nn.relu, name="b1c1")
+			# net = tl.layers.Conv2dLayer(net, shape=[3, 3, 16, 32], strides=[1, 1, 1, 1], act=tf.nn.relu, name="b1c2")
+			net = tl.layers.MaxPool2d(net, filter_size=(5, 5), strides=(2, 2), padding="SAME", name="b1p")
 			net = tl.layers.BatchNormLayer(net, is_train=isTrain, act=tf.nn.relu, name="b1b")
 			"""block 2"""
-			net = tl.layers.Conv2dLayer(net, shape=[3, 3, 32, 48], strides=[1, 1, 1, 1], act=tf.nn.relu, name="b2c1")
-			net = tl.layers.Conv2dLayer(net, shape=[3, 3, 48, 64], strides=[1, 1, 1, 1], act=tf.nn.relu, name="b2c2")
-			net = tl.layers.Conv2dLayer(net, shape=[3, 3, 64, 128], strides=[1, 2, 2, 1], act=tf.nn.relu, name="b2c3")
-			net = tl.layers.MaxPool2d(net, filter_size=(3, 3), strides=(2, 2), padding="SAME", name="b2p")
+			# net = tl.layers.Conv2dLayer(net, shape=[3, 3, 32, 48], strides=[1, 1, 1, 1], act=tf.nn.relu, name="b2c1")
+			# net = tl.layers.Conv2dLayer(net, shape=[3, 3, 48, 64], strides=[1, 1, 1, 1], act=tf.nn.relu, name="b2c2")
+			net = tl.layers.Conv2dLayer(net, shape=[7, 7, 64, 128], strides=[1, 2, 2, 1], act=tf.nn.relu, name="b2c3")
+			net = tl.layers.MaxPool2d(net, filter_size=(5, 5), strides=(2, 2), padding="SAME", name="b2p")
 			net = tl.layers.BatchNormLayer(net, is_train=isTrain, act=tf.nn.relu, name="b2b")
 
 			"""residual block"""
-			for i in range(15):
+			for i in range(7):
 				nn = net
 				nn = tl.layers.Conv2dLayer(
 					nn,
 					act=tf.nn.relu,
-					shape=[3, 3, 128, 128],
+					shape=[9, 9, 128, 128],
 					strides=[1, 1, 1, 1],
 					padding="SAME",
 					name="r1con%d" % i
@@ -195,7 +195,7 @@ class cnn:
 				nn = tl.layers.Conv2dLayer(
 					nn,
 					act=tf.nn.relu,
-					shape=[3, 3, 128, 128],
+					shape=[9, 9, 128, 128],
 					strides=[1, 1, 1, 1],
 					padding="SAME",
 					name="r2con%d" % i
@@ -212,7 +212,7 @@ class cnn:
 			net = tl.layers.DenseLayer(
 				net,
 				act=tf.nn.relu,
-				n_units=1024,
+				n_units=256,
 				name="Dense1"
 			)
 			net = tl.layers.DropoutLayer(
@@ -222,19 +222,19 @@ class cnn:
 				is_fix=True,
 				name="dropout1"
 			)
-			# net = tl.layers.DenseLayer(
-			# 	net,
-			# 	act=tf.nn.relu,
-			# 	n_units=64,
-			# 	name="Dense2"
-			# )
-			# net = tl.layers.DropoutLayer(
-			# 	net,
-			# 	keep=0.9,
-			# 	is_train=isTrain,
-			# 	is_fix=True,
-			# 	name="dropout2"
-			# )
+			net = tl.layers.DenseLayer(
+				net,
+				act=tf.nn.relu,
+				n_units=64,
+				name="Dense2"
+			)
+			net = tl.layers.DropoutLayer(
+				net,
+				keep=0.9,
+				is_train=isTrain,
+				is_fix=True,
+				name="dropout2"
+			)
 			net = tl.layers.DenseLayer(
 				net,
 				n_units=10,
