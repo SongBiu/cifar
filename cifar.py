@@ -163,19 +163,19 @@ class cnn:
 			tl.layers.set_name_reuse(reuse)
 			net = tl.layers.InputLayer(inputs=x_input, name='input_layer')
 			"""block 1"""
-			net = tl.layers.Conv2dLayer(net, shape=[7, 7, 3, 64], strides=[1, 1, 1, 1], act=tf.nn.relu, name="b1c1")
+			net = tl.layers.Conv2dLayer(net, shape=[7, 7, 3, 48], strides=[1, 1, 1, 1], act=tf.nn.relu, name="b1c1")
 			# net = tl.layers.Conv2dLayer(net, shape=[3, 3, 16, 32], strides=[1, 1, 1, 1], act=tf.nn.relu, name="b1c2")
 			net = tl.layers.MaxPool2d(net, filter_size=(5, 5), strides=(2, 2), padding="SAME", name="b1p")
 			net = tl.layers.BatchNormLayer(net, is_train=isTrain, act=tf.nn.relu, name="b1b")
 			"""block 2"""
 			# net = tl.layers.Conv2dLayer(net, shape=[3, 3, 32, 48], strides=[1, 1, 1, 1], act=tf.nn.relu, name="b2c1")
-			# net = tl.layers.Conv2dLayer(net, shape=[3, 3, 48, 64], strides=[1, 1, 1, 1], act=tf.nn.relu, name="b2c2")
+			net = tl.layers.Conv2dLayer(net, shape=[3, 3, 48, 64], strides=[1, 1, 1, 1], act=tf.nn.relu, name="b2c2")
 			net = tl.layers.Conv2dLayer(net, shape=[7, 7, 64, 128], strides=[1, 2, 2, 1], act=tf.nn.relu, name="b2c3")
 			net = tl.layers.MaxPool2d(net, filter_size=(5, 5), strides=(2, 2), padding="SAME", name="b2p")
 			net = tl.layers.BatchNormLayer(net, is_train=isTrain, act=tf.nn.relu, name="b2b")
 
 			"""residual block"""
-			for i in range(7):
+			for i in range(3):
 				nn = net
 				nn = tl.layers.Conv2dLayer(
 					nn,
