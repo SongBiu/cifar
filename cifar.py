@@ -63,7 +63,7 @@ class cnn:
 
 		cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=y_train_one_hot, logits=f.outputs)
 		loss = tf.reduce_mean(cross_entropy)
-		train_step = tf.train.AdadeltaOptimizer(self.learnRate).minimize(loss)
+		train_step = tf.train.AdamOptimizer(self.learnRate).minimize(loss)
 
 		correct_prediction = tf.equal((tf.argmax(test_f.outputs, 1)), y_test)
 		accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
@@ -220,19 +220,6 @@ class cnn:
 				n_units=1024,
 				name="Dense1"
 			)
-			# net = tl.layers.DropoutLayer(
-			# 	net,
-			# 	keep=0.9,
-			# 	is_train=isTrain,
-			# 	is_fix=True,
-			# 	name="dropout2"
-			# )
-			# net = tl.layers.DenseLayer(
-			# 	net,
-			# 	act=tf.nn.relu,
-			# 	n_units=64,
-			# 	name="Dense2"
-			# )
 			net = tl.layers.DenseLayer(
 				net,
 				n_units=10,
