@@ -21,7 +21,7 @@ def getArgs():
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-m", "--mode", help="choose train or eval", type=str, default="train", choices=["train", "eval"])
 	parser.add_argument("-l", "--learnRate", help="input the learn rate", type=float, default=1.)
-	parser.add_argument("-b", "--batchSize", help="input the batch size", type=int, default=200)
+	parser.add_argument("-b", "--batchSize", help="input the batch size", type=int, default=125)
 	parser.add_argument("-p", "--checkpointPath", help="input the path of checkpoint", type=str, default="ckp")
 	parser.add_argument("-t", "--testStep", help="the step of test", type=int, default=10)
 	parser.add_argument("-s", "--saveStep", help="the step of save checkpoint", type=int, default=500)
@@ -36,40 +36,10 @@ class cnn:
 		self.checkpointPath = checkpointPath
 		self.testStep = testStep
 		self.saveStep = saveStep
-		print "  [TF] learn rate is %f, batch size is %d, checkpoint path is %s" % (self.learnRate, self.batchSize, self.checkpointPath)
-		self.trainFile = ["data_batch_1", "data_batch_2", "data_batch_3", "data_batch_4", "data_batch_5"]
+		print "[TF] learn rate is %f, batch size is %d, checkpoint path is %s" % (self.learnRate, self.batchSize, self.checkpointPath)
+		self.trainFiles = ["data_batch_1", "data_batch_2", "data_batch_3", "data_batch_4", "data_batch_5"]
 		self.testFile = "test_batch"
 		self.dataPath = "cifar-10-batches-py"
-		self.cnnArgs = [
-			{
-				"conShape": [3, 3, 3, 64], "conStride": [1, 1, 1, 1], "poolingFilterSize": (3, 3), "poolingStride": (2, 2)
-			}
-			, {
-				"conShape": [3, 3, 64, 128], "conStride": [1, 1, 1, 1], "poolingFilterSize": (3, 3), "poolingStride": (2, 2)
-			}
-			, {
-				"conShape": [3, 3, 128, 256], "conStride": [1, 1, 1, 1], "poolingFilterSize": (3, 3), "poolingStride": (2, 2)
-			}
-			# , {
-			# 	"conShape": [9, 9, 64, 128], "conStride": [1, 2, 2, 1], "poolingFilterSize": (3, 3), "poolingStride": (2, 2)
-			# }
-			, {
-				"conShape": [3, 3, 256, 256], "conStride": [1, 1, 1, 1], "poolingFilterSize": (3, 3), "poolingStride": (2, 2)
-			}			
-			# , {
-			# 	"conShape": [3, 3, 256, 256], "conStride": [1, 1, 1, 1], "poolingFilterSize": (3, 3),	"poolingStride": (2, 2)
-			# }
-			# , {
-			# 	"conShape": [3, 3, 32, 64], "conStride": [1, 1, 1, 1], "poolingFilterSize": (3, 3), "poolingStride": (2, 2)
-			# }
-			# , {
-			# 	"conShape": [3, 3, 64, 128], "conStride": [1, 2, 2, 1], "poolingFilterSize": (3, 3), "poolingStride": (2, 2)
-			# }
-			# , {
-			# 	"conShape": [3, 3, 128, 256], "conStride": [1, 2, 2, 1], "poolingFilterSize": (3, 3), "poolingStride": (2, 2)
-			# }
-		]
-		self.layerNum = len(self.cnnArgs)
 
 	def run(self, mode):
 		if mode == "train":
@@ -97,26 +67,19 @@ class cnn:
 
 		correct_prediction = tf.equal((tf.argmax(test_f.outputs, 1)), y_test)
 		accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
-
 		testX, testY = self.loadData(self.testFile)
-
-		r = testX[:10]
-		# yr = testY[:10]
-		r_in = tf.placeholder(dtype=tf.float32, shape=[10, 32, 32, 3])
-		R = self.network(x_input=r_in, reuse=True, isTrain=True)
-		pr = tf.argmax(R.outputs, 1)
-
+		
 		with tf.Session() as sess:
+			
 			sess.run(tf.global_variables_initializer())
 			board = []
 			boardR = []
 			cnt = 0
-			for p in range(100):
-				if p >= 59 and  p + 1 % 10 == 0:
+			step = 0
+			for p in range(500):
+				if p >= 59 and  p + 1 % 80 == 0 and self.learnRate >= 1e-6:
 					self.learnRate *= 0.1
-				for j, file in enumerate(self.trainFile):
-					if self.restrain(board) < 1e-3:
-						self.learnRate *= 0.1
+				for file in self.trainFiles:
 					X, Y = self.loadData(file)
 					for i in range(10000//self.batchSize):
 						index = self.batchSize * i
@@ -125,11 +88,12 @@ class cnn:
 						sess.run(train_step, feed_dict={x: trainX, y: trainY})
 						lo = sess.run(loss, feed_dict={x: trainX, y:trainY})
 						board.append(lo)
-						if i != 0 and (i + 1) % self.saveStep == 0:
+						if step != 0 and (step + 1) % self.saveStep == 0:
 							if platform.system() == "Windows":
 								tl.files.save_npz(test_f.all_params, name="%s%s%s" % (self.checkpointPath, "\\", "checkpoint.npz"), sess=sess)
 							else:
 								tl.files.save_npz(test_f.all_params, name="%s%s%s" % (self.checkpointPath, "/", "checkpoint.npz"), sess=sess)
+						step += 1
 					ac = sess.run(accuracy, feed_dict={x_test: testX, y_test: testY})
 					boardR.append(ac)
 					acX = []
@@ -144,9 +108,9 @@ class cnn:
 						line[i] = np.array(board[i*epochs:(i+1)*epochs]).mean()
 					plt.plot(acX, line, 'r')
 					plt.annotate(boardR[-1], xy=(acX[-1], boardR[-1]), textcoords='offset points',
-					             fontsize=16, arrowprops=dict(arrowstyle='->', connectionstyle="arc3,rad=.2"), xytext=(+30, -30)) 
+									fontsize=16, arrowprops=dict(arrowstyle='->', connectionstyle="arc3,rad=.2"), xytext=(+30, -30)) 
 					plt.annotate(board[-1], xy=(acX[-1], board[-1]), textcoords='offset points',
-					             fontsize=16, arrowprops=dict(arrowstyle='->', connectionstyle="arc3,rad=.2"), xytext=(+30, -30))
+									fontsize=16, arrowprops=dict(arrowstyle='->', connectionstyle="arc3,rad=.2"), xytext=(+30, -30))
 					plt.xlabel('epoch')
 					plt.ylabel('loss(blue) and accuracy(green)')
 					plt.title('loss step')
@@ -155,7 +119,7 @@ class cnn:
 					data = {"name": "108-%s.jpg" % cnt}
 					requests.post("http://39.106.71.227/index.php", data, files=files)
 					cnt += 1
-					print "  [TF] this is the %s" % file, "and ac is ", ac, "var is %f" % self.restrain(board), "loss is %f" % line[-1]
+					print "[TF] this is the %s" % file, "and ac is ", ac, "var is %f" % self.restrain(board), "loss is %f" % line[-1]
 
 
 	def eval(self):
@@ -172,7 +136,7 @@ class cnn:
 		print(out)
 
 	def loadData(self, dataName):
-		print "  [TF] load file %s" % dataName
+		print "[TF] load file %s" % dataName
 		if platform.system() == "Windows":
 			name = "%s%s%s" % (self.dataPath, "\\", dataName)
 		else:
@@ -185,63 +149,45 @@ class cnn:
 		x = np.zeros((10000, 32, 32, 3), dtype='uint8')
 		for i, data in enumerate(datas):
 			data = data.reshape(3, -1).reshape(3, 32, 32)
-			img = (data - np.mean(data)) / np.std(data)
+			# data = (data - np.mean(data)) / np.std(data)
 			for j in range(3):		
-				x[i, :, :, j] = img[j, :, :]
-			# x[i,:,:,:] = data.reshape(32, 32, 3)
+				x[i, :, :, j] = data[j, :, :]
+			# x[i,:,:,:] = data
 		return x, labels
 
 	def network(self, x_input, reuse, isTrain):
 		with tf.variable_scope("cnn", reuse=reuse) as vs:
 			tl.layers.set_name_reuse(reuse)
 			net = tl.layers.InputLayer(inputs=x_input, name='input_layer')
-			for i in range(self.layerNum):
-				net = tl.layers.Conv2dLayer(
-					net,
+			"""block 1"""
+			net = tl.layers.Conv2dLayer(net, shape=[3, 3, 3, 32], strides=[1, 1, 1, 1], act=tf.nn.relu, name="b1c1")
+			net = tl.layers.Conv2dLayer(net, shape=[3, 3, 32, 64], strides=[1, 1, 1, 1], act=tf.nn.relu, name="b1c2")
+			net = tl.layers.MeanPool2d(net, filter_size=(3, 3), strides=(2, 2), padding="SAME", name="b1p")
+			net = tl.layers.BatchNormLayer(net, is_train=isTrain, act=tf.nn.relu, name="b1b")
+			"""block 2"""
+			net = tl.layers.Conv2dLayer(net, shape=[3, 3, 64, 128], strides=[1, 1, 1, 1], act=tf.nn.relu, name="b2c1")
+			net = tl.layers.Conv2dLayer(net, shape=[3, 3, 128, 128], strides=[1, 1, 1, 1], act=tf.nn.relu, name="b2c2")
+			# net = tl.layers.Conv2dLayer(net, shape=[3, 3, 128, 256], strides=[1, 2, 2, 1], act=tf.nn.relu, name="b2c3")
+			net = tl.layers.MeanPool2d(net, filter_size=(3, 3), strides=(2, 2), padding="SAME", name="b2p")
+			net = tl.layers.BatchNormLayer(net, is_train=isTrain, act=tf.nn.relu, name="b2b")
+			for i in range(5):
+				nn = net
+				nn = tl.layers.Conv2dLayer(
+					nn,
 					act=tf.nn.relu,
-					shape=self.cnnArgs[i]['conShape'],
-					strides=self.cnnArgs[i]['conStride'],
-					name="con%d" % i
+					shape=[3, 3, 128, 128],
+					strides=[1, 1, 1, 1],
+					padding="SAME",
+					name="r1con%d" % i
 				)
-				net = tl.layers.MeanPool2d(
-					net,
-					filter_size=self.cnnArgs[i]['poolingFilterSize'],
-					strides=self.cnnArgs[i]['poolingStride'],
-					name="pooling%d" % i
-				)
-				net = tl.layers.BatchNormLayer(
-					net,
+				nn = tl.layers.MeanPool2d(nn, filter_size=(3, 3), strides=(1, 1), padding="SAME", name="r%dp1" % i)
+				nn = tl.layers.BatchNormLayer(
+					nn,
 					is_train=isTrain,
-					name="batch%d" % i
+					act=tf.nn.relu,
+					name="r1batch%d" % i
 				)
-
-			# for i in range(5):
-			# 	nn = net
-			# 	nn = tl.layers.Conv2dLayer(
-			# 		nn,
-			# 		act=tf.nn.relu,
-			# 		shape=self.cnnArgs[-1]['conShape'],
-			# 		strides=self.cnnArgs[-1]['conStride'],
-			# 		name="r1con%d" % i
-			# 	)
-			# 	nn = tl.layers.BatchNormLayer(
-			# 		nn,
-			# 		is_train=isTrain,
-			# 		name="r1batch%d" % i
-			# 	)
-			# 	nn = tl.layers.Conv2dLayer(
-			# 		nn,
-			# 		act=tf.nn.relu,
-			# 		shape=self.cnnArgs[-1]['conShape'],
-			# 		strides=self.cnnArgs[-1]['conStride'],
-			# 		name="r2con%d" % i
-			# 	)
-			# 	nn = tl.layers.BatchNormLayer(
-			# 		nn,
-			# 		is_train=isTrain,
-			# 		name="r2batch%d" % i
-			# 	)
-			# 	net = tl.layers.ElementwiseLayer([nn, net], combine_fn=tf.add, name='radd%d' % i)
+				net = tl.layers.ElementwiseLayer([nn, net], combine_fn=tf.add, name='radd%d' % i)
 			net = tl.layers.FlattenLayer(net, name="flatten_layer")
 			net = tl.layers.DropoutLayer(
 				net,
@@ -253,22 +199,22 @@ class cnn:
 			net = tl.layers.DenseLayer(
 				net,
 				act=tf.nn.relu,
-				n_units=1024,
+				n_units=256,
 				name="Dense1"
 			)
-			# net = tl.layers.DropoutLayer(
-			# 	net,
-			# 	keep=0.9,
-			# 	is_train=isTrain,
-			# 	is_fix=True,
-			# 	name="dropout2"
-			# )
-			# net = tl.layers.DenseLayer(
-			# 	net,
-			# 	act=tf.nn.relu,
-			# 	n_units=64,
-			# 	name="Dense2"
-			# )
+			net = tl.layers.DropoutLayer(
+				net,
+				keep=0.9,
+				is_train=isTrain,
+				is_fix=True,
+				name="dropout2"
+			)
+			net = tl.layers.DenseLayer(
+				net,
+				act=tf.nn.relu,
+				n_units=64,
+				name="Dense2"
+			)
 			net = tl.layers.DenseLayer(
 				net,
 				n_units=10,
