@@ -20,7 +20,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 def getArgs():
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-m", "--mode", help="choose train or eval", type=str, default="train", choices=["train", "eval"])
-	parser.add_argument("-l", "--learnRate", help="input the learn rate", type=float, default=1.)
+	parser.add_argument("-l", "--learnRate", help="input the learn rate", type=float, default=1e-1)
 	parser.add_argument("-b", "--batchSize", help="input the batch size", type=int, default=100)
 	parser.add_argument("-p", "--checkpointPath", help="input the path of checkpoint", type=str, default="ckp")
 	parser.add_argument("-t", "--testStep", help="the step of test", type=int, default=10)
@@ -73,11 +73,12 @@ class cnn:
 	def train(self):
 		tl.files.exists_or_mkdir(self.checkpointPath)
 		self.buildargs()
-		train_step = tf.train.AdadeltaOptimizer(self.learnRate).minimize(self.loss)
+		train_step = tf.train.AdamOptimizer(self.learnRate).minimize(self.loss)
 		testX, testY = self.loadData(self.testFile)
-		config = tf.ConfigProto()
-		config.gpu_options.per_process_gpu_memory_fraction = 0.8
-		with tf.Session(config=config) as sess:
+		# config = tf.ConfigProto()
+		# config.gpu_options.per_process_gpu_memory_fraction = 0.8
+		# with tf.Session(config=config) as sess:
+		with tf.Session() as sess:
 			sess.run(tf.global_variables_initializer())
 			for i in range(500):
 				if i >= 59 and  i + 1 % 100 == 0 and self.learnRate >= 1e-6:
@@ -188,21 +189,21 @@ class cnn:
 			# net = tl.layers.MaxPool2d(net, filter_size=(2, 2), strides=(2, 2), padding="SAME", name="b3p")
 
 			"""residual block"""
-			for i in range(3):
+			for i in range(5):
 				nn = net
 				nn = tl.layers.Conv2dLayer(nn, act=tf.nn.relu, shape=[3, 3, 128, 128], strides=[1, 1, 1, 1], padding="SAME", name="r1con%d" % i)
 				nn = tl.layers.BatchNormLayer(nn, is_train=isTrain, act=tf.nn.relu, name="r1batch%d" % i)
 				nn = tl.layers.MeanPool2d(nn, filter_size=(2, 2), strides=(1, 1), padding="SAME", name="r1%dp" % i)
-				# nn = tl.layers.Conv2dLayer(nn, act=tf.nn.relu, shape=[3, 3, 128, 128], strides=[1, 1, 1, 1], padding="SAME", name="r2con%d" % i)
-				# nn = tl.layers.BatchNormLayer(nn, is_train=isTrain, act=tf.nn.relu, name="r2batch%d" % i)
-				# nn = tl.layers.MeanPool2d(nn, filter_size=(2, 2), strides=(1, 1), padding="SAME", name="r2%dp" % i)
+				nn = tl.layers.Conv2dLayer(nn, act=tf.nn.relu, shape=[3, 3, 128, 128], strides=[1, 1, 1, 1], padding="SAME", name="r2con%d" % i)
+				nn = tl.layers.BatchNormLayer(nn, is_train=isTrain, act=tf.nn.relu, name="r2batch%d" % i)
+				nn = tl.layers.MeanPool2d(nn, filter_size=(2, 2), strides=(1, 1), padding="SAME", name="r2%dp" % i)
 				net = tl.layers.ElementwiseLayer([nn, net], combine_fn=tf.add, name='radd%d' % i)
 			"""Dense Layers"""
 			net = tl.layers.FlattenLayer(net, name="flatten_layer")
 			net = tl.layers.DenseLayer(net, act=tf.nn.relu, n_units=256, name="Dense1")
-			net = tl.layers.DropoutLayer(net, keep=0.9, is_train=isTrain, is_fix=True, name="dropout1")
+			net = tl.layers.DropoutLayer(net, keep=0.5, is_train=isTrain, is_fix=True, name="dropout1")
 			net = tl.layers.DenseLayer(net, act=tf.nn.relu, n_units=64, name="Dense2")
-			net = tl.layers.DropoutLayer(net, keep=0.9, is_train=isTrain, is_fix=True, name="dropout2")
+			net = tl.layers.DropoutLayer(net, keep=0.5, is_train=isTrain, is_fix=True, name="dropout2")
 			# net = tl.layers.DenseLayer(net, act=tf.nn.relu ,n_units=32, name="Dense3")
 			# net = tl.layers.DropoutLayer(net, keep=0.9, is_train=isTrain, is_fix=True, name="dropout3")
 			net = tl.layers.DenseLayer(net, n_units=10, act=tf.nn.sigmoid, name="outLayer")
